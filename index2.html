@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Weather Station Data</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body{
+      background-color: rgb(183, 226, 226);
+    }
+    #rangeSelect {
+      background-color: rgb(139, 175, 181);
+      border: thin solid rgb(39, 118, 160);
+      border-radius: 10px;
+      width: 500px;
+      position: absolute;
+      left: 100px
+    }
+    .padding{
+      padding-top: 100px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-8">
+        <select id="rangeSelect" class="form-control mb-3">
+          <option value="300">Last 5 minutes</option>
+          <option value="1800">Last hour</option>
+          <option value="86400">Last day</option>
+          <option value="2592000">Last month</option>
+        </select>
+        <div class="padding">
+
+        </div>
+        <canvas id="temperatureChart"></canvas>
+        <canvas id="humidityChart"></canvas>
+        <canvas id="pressureChart"></canvas>
+        <canvas id="luxChart"></canvas>
+        <canvas id="rainStatusChart"></canvas>
+        <canvas id="rainFallChart"></canvas>
+        <canvas id="windSpeedChart"></canvas>
+
+      </div>
+    </div>
+
+    <script>
+      var temperatureChart;
+      var humidityChart;
+      var pressureChart;
+      var luxChart;
+      var rainStatusChart;
+      var rainFallChart;
+      var windSpeedChart;
+
+      document.getElementById('rangeSelect').addEventListener('change', function () {
+        updateCharts();
+      });
+
+      function createChart(ctxId, label, data, color, labels) {
+        var ctx = document.getElementById(ctxId).getContext('2d');
+        return new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: label,
+              data: data,
+              borderColor: color,
+              fill: false,
+              tension: 0.4
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: {
+                type: 'category'
+              }
+            }
+          }
+        });
+      }
+
+      function updateCharts() {
+        // Fetch data from Google Sheets
+        fetch('https://sheets.googleapis.com/v4/spreadsheets/1kdHyryY_KKPG_eRSO35-yJP2IS-CNnh-5uIxq1jeRnU/values/WEATHER_STATION_MAIN_DATA_COLLECTOR!A:J?key=AIzaSyCb8UvzT6LXdtpdjfmzKukBCUi1K536w2Y')
+          .then(response => response.json())
+          .then(data => {
+            // Log the fetched data to the console
+            console.log(data);
+
+            // Check if data.values is defined
+            if (!data.values) {
+              console.error('No data values found');
+              return;
+            }
+
+            // Parse the data into Chart.js
+            var range = document.getElementById('rangeSelect').value;
+            var filteredData = data.values.slice(1).filter(row => {
+              var rowTime = new Date(row[0] + 'T' + row[1]).getTime();  // Combine date and time with a "T"
+              return Date.now() - rowTime <= range * 1000;
+            });
+            const labels = filteredData.map(row => row[0] + ' ' + row[1]); // Combine date and time
+            const temperatureData = filteredData.map(row => row[2]);
+            const humidityData = filteredData.map(row => row[3]);
+            const pressureData = filteredData.map(row => row[4]);
+            const luxData = filteredData.map(row => row[5]);
+            const rainStatusData = filteredData.map(row => row[6]);
+            const rainFallData = filteredData.map(row => row[7]);
+            const windSpeedData = filteredData.map(row => row[8]);
+
+            // Update,create the charts
+            if (temperatureChart) {
+              temperatureChart.data.labels = labels;
+              temperatureChart.data.datasets[0].data = temperatureData;
+              temperatureChart.update();
+            } else {
+              temperatureChart = createChart('temperatureChart', 'Temperature', temperatureData, 'rgb(255, 99, 132)', labels);
+            }
+
+            if (humidityChart) {
+              humidityChart.data.labels = labels;
+              humidityChart.data.datasets[0].data = humidityData;
+              humidityChart.update();
+            } else {
+              humidityChart = createChart('humidityChart', 'Humidity', humidityData, 'rgb(75, 192, 192)', labels);
+            }
+
+            if (pressureChart) {
+              pressureChart.data.labels = labels;
+              pressureChart.data.datasets[0].data = pressureData;
+              pressureChart.update();
+            } else {
+              pressureChart = createChart('pressureChart', 'Pressure', pressureData, 'rgb(153, 102, 255)', labels);
+            }
+
+            if (luxChart) {
+              luxChart.data.labels = labels;
+              luxChart.data.datasets[0].data = luxData;
+              luxChart.update();
+            } else {
+              luxChart = createChart('luxChart', 'Lux', luxData, 'rgb(255, 159, 64)', labels);
+            }
+
+            if (rainStatusChart) {
+              rainStatusChart.data.labels = labels;
+              rainStatusChart.data.datasets[0].data = rainStatusData;
+              rainStatusChart.update();
+            } else {
+              rainStatusChart = createChart('rainStatusChart', 'Rain Status', rainStatusData, 'rgb(255, 205, 86)', labels);
+            }
+
+            if (rainFallChart) {
+              rainFallChart.data.labels = labels;
+              rainFallChart.data.datasets[0].data = rainFallData;
+              rainFallChart.update();
+            } else {
+              rainFallChart = createChart('rainFallChart', 'Rain Fall', rainFallData, 'rgb(54, 162, 235)', labels);
+            }
+
+            if (windSpeedChart) {
+              windSpeedChart.data.labels = labels;
+              windSpeedChart.data.datasets[0].data = windSpeedData;
+              windSpeedChart.update();
+            } else {
+              windSpeedChart = createChart('windSpeedChart', 'Wind Speed', windSpeedData, 'rgb(75, 192, 192)', labels);
+            }
+          });
+      }
+
+      updateCharts();
+      //refreshing affter every 20sec
+      setInterval(updateCharts, 20000);
+    </script>
+</body>
+
+</html>
